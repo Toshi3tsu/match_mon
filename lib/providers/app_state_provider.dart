@@ -8,6 +8,8 @@ import '../models/user_state.dart';
 import '../models/dungeon.dart';
 import '../models/match_session.dart';
 import '../models/persistent_assets.dart';
+import '../models/world_goals.dart';
+import '../models/expedition_result.dart';
 import '../data/mock_data.dart';
 import '../services/dungeon_service.dart';
 
@@ -55,6 +57,12 @@ class AppState {
   // 永続資産（知識/制度/系譜コア）
   final PersistentAssets persistentAssets;
 
+  // 世界の目的と評価指標（公共指標）
+  final PublicMetrics publicMetrics;
+
+  // 今回の遠征（周回）の状態
+  final ExpeditionState expeditionState;
+
   AppState({
     required this.userState,
     this.playerCharacter,
@@ -71,6 +79,8 @@ class AppState {
     required this.currentDate,
     required this.dungeonExplorationState,
     required this.persistentAssets,
+    required this.publicMetrics,
+    required this.expeditionState,
   });
 
   AppState copyWith({
@@ -89,6 +99,8 @@ class AppState {
     DateTime? currentDate,
     DungeonExplorationState? dungeonExplorationState,
     PersistentAssets? persistentAssets,
+    PublicMetrics? publicMetrics,
+    ExpeditionState? expeditionState,
   }) {
     return AppState(
       userState: userState ?? this.userState,
@@ -106,6 +118,8 @@ class AppState {
       currentDate: currentDate ?? this.currentDate,
       dungeonExplorationState: dungeonExplorationState ?? this.dungeonExplorationState,
       persistentAssets: persistentAssets ?? this.persistentAssets,
+      publicMetrics: publicMetrics ?? this.publicMetrics,
+      expeditionState: expeditionState ?? this.expeditionState,
     );
   }
 }
@@ -135,6 +149,8 @@ class AppStateNotifier extends StateNotifier<AppState> {
             currentDate: DateTime.now(),
             dungeonExplorationState: initialDungeonExplorationState,
             persistentAssets: PersistentAssets.initial(),
+            publicMetrics: PublicMetrics.initial(),
+            expeditionState: ExpeditionState.initial(),
           ),
         );
 
@@ -501,6 +517,29 @@ class AppStateNotifier extends StateNotifier<AppState> {
         ),
       ),
     );
+  }
+
+  // 遠征の目標を設定
+  void setExpeditionGoal(ExpeditionGoal goal) {
+    state = state.copyWith(
+      expeditionState: state.expeditionState.copyWith(currentGoal: goal),
+    );
+  }
+
+  // 遠征の階層を更新
+  void updateExpeditionFloor(int floor) {
+    final currentMaxFloor = state.expeditionState.maxFloorReached;
+    state = state.copyWith(
+      expeditionState: state.expeditionState.copyWith(
+        currentFloor: floor,
+        maxFloorReached: floor > currentMaxFloor ? floor : currentMaxFloor,
+      ),
+    );
+  }
+
+  // 公共指標を更新
+  void updatePublicMetrics(PublicMetrics metrics) {
+    state = state.copyWith(publicMetrics: metrics);
   }
 }
 

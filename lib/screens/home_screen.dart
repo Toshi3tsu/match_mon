@@ -87,7 +87,7 @@ class HomeScreen extends ConsumerWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 左カラム（自キャラクター + 状態）
+        // 左カラム（自キャラクター + 今回の遠征）
         Expanded(
           flex: 2,
           child: Column(
@@ -102,14 +102,24 @@ class HomeScreen extends ConsumerWidget {
                 true, // isDesktop
               ),
               const SizedBox(height: 12),
-              _buildUserStateCard(context, state, theme, isMobile, isTablet),
+              // 遠征準備（配合目標）
+              if (state.userState.targetSpecies != null)
+                _buildTargetCard(context, state, theme, isMobile, isTablet),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        // 中央カラム（世界の目標 + 永続資産）
+        Expanded(
+          flex: 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildWorldGoalsCard(context, state, theme, isMobile, isTablet),
               const SizedBox(height: 12),
               _buildPersistentAssetsCard(context, state, theme, isMobile, isTablet),
               const SizedBox(height: 12),
-              _buildDungeonExplorationCard(context, state, theme, ref, isMobile, isTablet),
-              const SizedBox(height: 12),
-              if (state.userState.targetSpecies != null)
-                _buildTargetCard(context, state, theme, isMobile, isTablet),
+              _buildUserStateCard(context, state, theme, isMobile, isTablet),
             ],
           ),
         ),
@@ -178,6 +188,7 @@ class HomeScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 最上部：自キャラクター
         _buildPlayerCharacterCard(
           context,
           state,
@@ -187,16 +198,21 @@ class HomeScreen extends ConsumerWidget {
           false, // isDesktop
         ),
         const SizedBox(height: 12),
-        _buildUserStateCard(context, state, theme, isMobile, isTablet),
+        // 第1セクション：世界の目標
+        _buildWorldGoalsCard(context, state, theme, isMobile, isTablet),
         const SizedBox(height: 12),
-        _buildPersistentAssetsCard(context, state, theme, isMobile, isTablet),
-        const SizedBox(height: 12),
-        _buildDungeonExplorationCard(context, state, theme, ref, isMobile, isTablet),
-        const SizedBox(height: 12),
+        // 第2セクション：遠征準備（配合目標）
         if (state.userState.targetSpecies != null) ...[
           _buildTargetCard(context, state, theme, isMobile, isTablet),
           const SizedBox(height: 12),
         ],
+        // 第3セクション：永続資産
+        _buildPersistentAssetsCard(context, state, theme, isMobile, isTablet),
+        const SizedBox(height: 12),
+        // 第4セクション：現在の状態
+        _buildUserStateCard(context, state, theme, isMobile, isTablet),
+        const SizedBox(height: 12),
+        // 直近のマッチング/交配結果
         if (recentCollaborations.isNotEmpty) ...[
           _buildSectionHeader(
             context,
@@ -598,31 +614,54 @@ class HomeScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.flag,
+                  size: isMobile ? 20 : 24,
+                  color: Colors.blue.shade700,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '配合目標（遠征準備）',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade900,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             Text(
-              '目標',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+              'マッチ/配合は"遠征準備の手段"として位置付けられます',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.7),
+                fontStyle: FontStyle.italic,
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              '目標種族: ${state.userState.targetSpecies}'
-              '${state.userState.targetTags != null && state.userState.targetTags!.isNotEmpty ? " (タグ: ${state.userState.targetTags!.join(", ")})" : ""}',
-              style: theme.textTheme.bodySmall,
-            ),
             const SizedBox(height: 12),
+            if (state.userState.targetSpecies != null) ...[
+              Text(
+                '目標種族: ${state.userState.targetSpecies}'
+                '${state.userState.targetTags != null && state.userState.targetTags!.isNotEmpty ? " (タグ: ${state.userState.targetTags!.join(", ")})" : ""}',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 CustomButton(
-                  text: '探すへ',
+                  text: '探す（マッチング）',
                   onPressed: () => context.go('/discover'),
                   variant: ButtonVariant.primary,
                   size: ButtonSize.small,
                 ),
                 CustomButton(
-                  text: '交配へ',
+                  text: '交配（準備）',
                   onPressed: () => context.go('/production'),
                   variant: ButtonVariant.secondary,
                   size: ButtonSize.small,
@@ -753,11 +792,22 @@ class HomeScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '永続資産',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.account_tree,
+                      size: isMobile ? 20 : 24,
+                      color: Colors.purple.shade700,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '永続資産（三層構造）',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.purple.shade900,
+                      ),
+                    ),
+                  ],
                 ),
                 TextButton.icon(
                   onPressed: () => context.go('/discover'),
@@ -771,35 +821,71 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            const SizedBox(height: 8),
+            Text(
+              'リセットされるもの／残るものを三層に分けて表示',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
             const SizedBox(height: 12),
-            // 知識（情報の継承）
+            // 第一層：知識（情報の継承）
             _buildAssetRow(
               context,
               theme,
-              '知識',
+              '第一層：知識（情報の継承）',
               '${knowledge.breedingRecipes.length}レシピ / ${knowledge.discoveredPatterns.length}パターン / ${knowledge.enemyEncyclopedia.length}敵',
               Colors.orange,
               Icons.lightbulb,
             ),
             const SizedBox(height: 8),
-            // 選択肢（手段の継承）
+            // 第二層：選択肢（手段の継承）
             _buildAssetRow(
               context,
               theme,
-              '選択肢',
+              '第二層：選択肢（手段の継承）',
               'ランク${institution.consultationOfficeRank} / 契約枠${institution.contractSlots} / 行動${assets.choices.unlockedBondActions.length}個',
               Colors.blue,
               Icons.business,
             ),
             const SizedBox(height: 8),
-            // 系譜資産（配合の継承）
+            // 第三層：系譜資産（配合の継承）
             _buildAssetRow(
               context,
               theme,
-              '系譜資産',
+              '第三層：系譜資産（配合の継承）',
               '継承枠${lineageCore.inheritanceSlots} / 記録${lineageCore.lineageRecords.length}件 / 特性${assets.lineageAssets.unlockedTraitSlots.length}個',
               Colors.purple,
               Icons.account_tree,
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: Colors.grey.shade700,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'モンスターの強さは周回で揺れる。恒久的に残るのは選択肢の増加と知識。',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.grey.shade700,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -849,136 +935,85 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDungeonExplorationCard(
+
+  // 世界の目標（公共指標）カード
+  Widget _buildWorldGoalsCard(
     BuildContext context,
     dynamic state,
     ThemeData theme,
-    WidgetRef ref,
     bool isMobile,
     bool isTablet,
   ) {
-    final explorationState = state.dungeonExplorationState;
-    final isExploring = explorationState.currentNodeId != null || 
-                        explorationState.visitedNodeIds.isNotEmpty;
+    final metrics = state.publicMetrics;
     
     return Card(
-      color: Colors.purple.shade50,
+      color: Colors.green.shade50,
       child: Padding(
         padding: EdgeInsets.all(isMobile ? 12 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.explore,
-                      size: isMobile ? 20 : 24,
-                      color: Colors.purple.shade700,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '深層ダンジョン探索',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.purple.shade900,
-                      ),
-                    ),
-                  ],
+                Icon(
+                  Icons.public,
+                  size: isMobile ? 20 : 24,
+                  color: Colors.green.shade700,
                 ),
-                if (isExploring)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.shade200,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '探索中',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.purple.shade900,
-                      ),
-                    ),
+                const SizedBox(width: 8),
+                Text(
+                  '世界の目標（公共指標）',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade900,
                   ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              'はじまりのダンジョン',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+            _buildMetricRow(
+              context,
+              theme,
+              '封印の安定度',
+              '${(metrics.sealStability * 100).toStringAsFixed(0)}%',
+              metrics.sealStability,
+              Colors.blue,
             ),
-            const SizedBox(height: 4),
-            Text(
-              '深層ダンジョンへの入口。5階層の構造を持つ。最深部には守護者が待ち構えている。',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
-              ),
+            const SizedBox(height: 8),
+            _buildMetricRow(
+              context,
+              theme,
+              '最深部到達度',
+              '${(metrics.deepestReach * 100).toStringAsFixed(0)}%',
+              metrics.deepestReach,
+              Colors.purple,
             ),
-            if (isExploring) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.purple.shade100,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16,
-                      color: Colors.purple.shade700,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '訪問済みノード: ${explorationState.visitedNodeIds.length}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.purple.shade900,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+            _buildMetricRow(
+              context,
+              theme,
+              '瘴気後退率',
+              '${(metrics.miasmaRetreatRate * 100).toStringAsFixed(0)}%',
+              metrics.miasmaRetreatRate,
+              Colors.orange,
+            ),
+            const SizedBox(height: 8),
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(
-                  child: CustomButton(
-                    text: isExploring ? '探索を続ける' : '探索を開始',
-                    onPressed: () {
-                      if (!isExploring) {
-                        ref.read(appStateProvider.notifier).startDungeonExploration();
-                      }
-                      context.go('/dungeon');
-                    },
-                    variant: ButtonVariant.primary,
-                    size: ButtonSize.medium,
+                Text(
+                  '救助数',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-                if (isExploring) ...[
-                  const SizedBox(width: 8),
-                  CustomButton(
-                    text: 'リセット',
-                    onPressed: () {
-                      ref.read(appStateProvider.notifier).resetDungeonExploration();
-                    },
-                    variant: ButtonVariant.secondary,
-                    size: ButtonSize.medium,
+                Text(
+                  '${metrics.rescuedResidents}人',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade700,
                   ),
-                ],
+                ),
               ],
             ),
           ],
@@ -986,6 +1021,50 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _buildMetricRow(
+    BuildContext context,
+    ThemeData theme,
+    String label,
+    String value,
+    double progress,
+    Color color,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              value,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: progress,
+            backgroundColor: color.withOpacity(0.2),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+            minHeight: 6,
+          ),
+        ),
+      ],
+    );
+  }
+
 }
 
 class _StatItem extends StatelessWidget {

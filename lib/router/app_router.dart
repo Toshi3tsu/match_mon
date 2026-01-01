@@ -10,6 +10,7 @@ import '../screens/player_character_screen.dart';
 import '../screens/dungeon_exploration_screen.dart';
 import '../screens/match_session_screen.dart';
 import '../screens/consultation_office_screen.dart';
+import '../screens/expedition_result_screen.dart';
 import '../models/collaboration.dart';
 import '../widgets/bottom_navigation.dart';
 
@@ -69,6 +70,17 @@ final appRouter = GoRouter(
         body: const DungeonExplorationScreen(),
         bottomNavigationBar: BottomNavigation(currentPath: '/dungeon'),
       ),
+      routes: [
+        GoRoute(
+          path: 'result',
+          builder: (context, state) {
+            final resultId = state.uri.queryParameters['id'];
+            return Scaffold(
+              body: ExpeditionResultScreen(resultId: resultId),
+            );
+          },
+        ),
+      ],
     ),
     GoRoute(
       path: '/match-session',

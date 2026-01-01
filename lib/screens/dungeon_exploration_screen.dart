@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/tag_widget.dart';
@@ -1291,11 +1292,22 @@ class DungeonExplorationScreen extends ConsumerWidget {
   }
 
   void _retreat(BuildContext context, WidgetRef ref) {
-    // 撤退処理
-    ref.read(appStateProvider.notifier).exitRoom();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('撤退しました。')),
-    );
+    // 撤退処理：遠征リザルト画面に遷移
+    final state = ref.read(appStateProvider);
+    final explorationState = state.dungeonExplorationState;
+    
+    // 遠征の階層を更新
+    if (explorationState.currentNodeId != null) {
+      // 現在のノードから階層を推定（実際の実装では、ノードから階層を取得）
+      final currentFloor = explorationState.visitedNodeIds.length;
+      ref.read(appStateProvider.notifier).updateExpeditionFloor(currentFloor);
+    }
+    
+    // 探索をリセット
+    ref.read(appStateProvider.notifier).resetDungeonExploration();
+    
+    // 遠征リザルト画面に遷移
+    context.go('/dungeon/result');
   }
 
   // イベントノード完了
