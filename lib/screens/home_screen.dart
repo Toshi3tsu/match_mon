@@ -3,9 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/app_state_provider.dart';
-import '../widgets/monster_card.dart';
 import '../widgets/custom_button.dart';
-import '../widgets/tag_widget.dart';
 import '../widgets/custom_app_bar.dart';
 import '../models/monster.dart';
 
@@ -87,7 +85,7 @@ class HomeScreen extends ConsumerWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 左カラム（自キャラクター + 今回の遠征）
+        // 左カラム（自キャラクター + 今回の遠征 + 永続資産 + 現在の状態）
         Expanded(
           flex: 2,
           child: Column(
@@ -105,21 +103,11 @@ class HomeScreen extends ConsumerWidget {
               // 遠征準備（配合目標）
               if (state.userState.targetSpecies != null)
                 _buildTargetCard(context, state, theme, isMobile, isTablet),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        // 中央カラム（世界の目標 + 永続資産）
-        Expanded(
-          flex: 2,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildWorldGoalsCard(context, state, theme, isMobile, isTablet),
+              if (state.userState.targetSpecies != null)
+                const SizedBox(height: 12),
+              _buildPersistentAssetsCard(context, state, theme, ref, isMobile, isTablet),
               const SizedBox(height: 12),
-              _buildPersistentAssetsCard(context, state, theme, isMobile, isTablet),
-              const SizedBox(height: 12),
-              _buildUserStateCard(context, state, theme, isMobile, isTablet),
+              _buildUserStateCard(context, state, theme, ref, isMobile, isTablet),
             ],
           ),
         ),
@@ -131,40 +119,28 @@ class HomeScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (recentCollaborations.isNotEmpty) ...[
+              if (recentCollaborations.isNotEmpty || recentProduction.isNotEmpty) ...[
                 _buildSectionHeader(
                   context,
                   theme,
-                  '直近のマッチング',
-                  () => context.go('/collaborations'),
+                  '直近の出来事',
+                  () {
+                    if (recentCollaborations.isNotEmpty) {
+                      context.go('/collaborations');
+                    } else if (recentProduction.isNotEmpty) {
+                      context.go('/history');
+                    }
+                  },
                 ),
                 const SizedBox(height: 8),
-                _buildHorizontalList(
+                _buildEventLog(
                   context,
+                  theme,
                   recentCollaborations,
-                  (collab) => collab.partner,
+                  recentProduction,
                   isMobile,
-                  isTablet,
-                  true, // isDesktop
                 ),
                 const SizedBox(height: 16),
-              ],
-              if (recentProduction.isNotEmpty) ...[
-                _buildSectionHeader(
-                  context,
-                  theme,
-                  '直近の交配結果',
-                  () => context.go('/production'),
-                ),
-                const SizedBox(height: 8),
-                _buildHorizontalList(
-                  context,
-                  recentProduction,
-                  (prod) => prod.child,
-                  isMobile,
-                  isTablet,
-                  true, // isDesktop
-                ),
               ],
               if (state.collaborations.isEmpty && state.productionHistory.isEmpty)
                 _buildEmptyState(context, theme),
@@ -188,7 +164,7 @@ class HomeScreen extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 最上部：自キャラクター
+        // 自キャラクター
         _buildPlayerCharacterCard(
           context,
           state,
@@ -198,55 +174,40 @@ class HomeScreen extends ConsumerWidget {
           false, // isDesktop
         ),
         const SizedBox(height: 12),
-        // 第1セクション：世界の目標
-        _buildWorldGoalsCard(context, state, theme, isMobile, isTablet),
-        const SizedBox(height: 12),
         // 第2セクション：遠征準備（配合目標）
         if (state.userState.targetSpecies != null) ...[
           _buildTargetCard(context, state, theme, isMobile, isTablet),
           const SizedBox(height: 12),
         ],
         // 第3セクション：永続資産
-        _buildPersistentAssetsCard(context, state, theme, isMobile, isTablet),
+        _buildPersistentAssetsCard(context, state, theme, ref, isMobile, isTablet),
         const SizedBox(height: 12),
         // 第4セクション：現在の状態
-        _buildUserStateCard(context, state, theme, isMobile, isTablet),
+        _buildUserStateCard(context, state, theme, ref, isMobile, isTablet),
         const SizedBox(height: 12),
-        // 直近のマッチング/交配結果
-        if (recentCollaborations.isNotEmpty) ...[
+        // 第二層：直近の出来事（証跡）
+        if (recentCollaborations.isNotEmpty || recentProduction.isNotEmpty) ...[
           _buildSectionHeader(
             context,
             theme,
-            '直近のマッチング',
-            () => context.go('/collaborations'),
+            '直近の出来事',
+            () {
+              if (recentCollaborations.isNotEmpty) {
+                context.go('/collaborations');
+              } else if (recentProduction.isNotEmpty) {
+                context.go('/history');
+              }
+            },
           ),
           const SizedBox(height: 8),
-          _buildHorizontalList(
+          _buildEventLog(
             context,
+            theme,
             recentCollaborations,
-            (collab) => collab.partner,
+            recentProduction,
             isMobile,
-            isTablet,
-            false, // isDesktop
           ),
           const SizedBox(height: 12),
-        ],
-        if (recentProduction.isNotEmpty) ...[
-          _buildSectionHeader(
-            context,
-            theme,
-            '直近の交配結果',
-            () => context.go('/history'),
-          ),
-          const SizedBox(height: 8),
-          _buildHorizontalList(
-            context,
-            recentProduction,
-            (prod) => prod.child,
-            isMobile,
-            isTablet,
-            false, // isDesktop
-          ),
         ],
         if (state.collaborations.isEmpty && state.productionHistory.isEmpty)
           _buildEmptyState(context, theme),
@@ -264,9 +225,7 @@ class HomeScreen extends ConsumerWidget {
   ) {
     return Card(
       elevation: 4,
-      color: state.playerCharacter != null 
-          ? Colors.blue.shade50 
-          : Colors.grey.shade100,
+      color: theme.colorScheme.surfaceContainerHighest,
       child: InkWell(
         onTap: state.playerCharacter != null 
             ? () => context.go('/player-character')
@@ -298,20 +257,7 @@ class HomeScreen extends ConsumerWidget {
     Monster monster,
     ThemeData theme,
   ) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 2,
-          child: _buildCharacterImage(monster, theme, 200),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          flex: 3,
-          child: _buildCharacterInfo(monster, theme, context),
-        ),
-      ],
-    );
+    return _buildCharacterOverlay(monster, theme, context);
   }
 
   Widget _buildCharacterVertical(
@@ -320,173 +266,262 @@ class HomeScreen extends ConsumerWidget {
     ThemeData theme,
     bool isMobile,
   ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.person,
-                  size: isMobile ? 20 : 24,
-                  color: Colors.blue.shade700,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '自キャラクター',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade900,
-                  ),
-                ),
-              ],
-            ),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: Colors.blue.shade700,
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        MonsterCard(
-          monster: monster,
-          showDetails: !isMobile,
-          onTap: () => context.go('/player-character'),
-        ),
-      ],
-    );
+    return _buildCharacterOverlay(monster, theme, context);
   }
 
-  Widget _buildCharacterImage(Monster monster, ThemeData theme, double height) {
-    return ClipRRect(
+  // 画像の上に名前とパラメータを重ねて表示
+  Widget _buildCharacterOverlay(
+    Monster monster,
+    ThemeData theme,
+    BuildContext context,
+  ) {
+    return InkWell(
+      onTap: () => context.go('/player-character'),
       borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: height,
-        width: double.infinity,
-        color: theme.colorScheme.surfaceVariant,
-        child: monster.image != null
-            ? Builder(
-                builder: (context) {
-                  String assetPath = monster.image!;
-                  if (kIsWeb && assetPath.startsWith('assets/')) {
-                    assetPath = assetPath.substring(7);
-                  }
-                  return Image.asset(
-                    assetPath,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: theme.colorScheme.surfaceVariant,
-                        child: Center(
-                          child: Icon(
-                            Icons.image_outlined,
-                            size: 48,
-                            color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
-              )
-            : Container(
-                color: theme.colorScheme.surfaceVariant,
-                child: Center(
-                  child: Icon(
-                    Icons.image_outlined,
-                    size: 48,
-                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
-                  ),
+      child: Stack(
+        children: [
+          // 画像（正方形）
+          _buildCharacterImage(monster, theme),
+          // 上段：名前（半透過背景）
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
                 ),
               ),
-      ),
-    );
-  }
-
-  Widget _buildCharacterInfo(Monster monster, ThemeData theme, BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    monster.name,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          monster.name,
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "${monster.species} / ${monster.rank}",
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: Colors.white.withOpacity(0.9),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "${monster.species} / ${monster.rank}",
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6),
-                    ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 20,
+                    color: Colors.white.withOpacity(0.8),
                   ),
                 ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward_ios,
-              size: 16,
-              color: Colors.blue.shade700,
+          ),
+          // 下段：パラメータ（半透過背景）
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.6),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
+                ),
+              ),
+              child: _buildParametersDisplay(monster, theme),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // パラメータ表示
+  Widget _buildParametersDisplay(Monster monster, ThemeData theme) {
+    // 装備補正後のパラメータを取得
+    final adjustedParams = monster.getAdjustedParameters();
+    
+    if (adjustedParams.isEmpty) {
+      return Text(
+        'パラメータ未設定',
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: Colors.white.withOpacity(0.8),
+        ),
+      );
+    }
+
+    // 主要パラメータを表示（最大4つ）
+    final displayParams = adjustedParams.entries.take(4).toList();
+    
+    return Wrap(
+      spacing: 12,
+      runSpacing: 8,
+      children: displayParams.map((entry) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              entry.key,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white.withOpacity(0.8),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '${entry.value}',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
             ),
           ],
-        ),
-        const SizedBox(height: 12),
-        Text(
-          monster.profile,
-          style: theme.textTheme.bodyMedium,
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: monster.tags
-              .map((tag) => TagWidget(label: tag))
-              .toList(),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          "スキル:",
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurface.withOpacity(0.6),
+        );
+      }).toList(),
+    );
+  }
+
+  /// 画像パスからベース名を抽出（拡張子とディレクトリパスを処理）
+  String _getBaseName(String imagePath) {
+    // パスからファイル名を取得
+    String fileName = imagePath.split('/').last;
+    // 拡張子を除去
+    if (fileName.contains('.')) {
+      fileName = fileName.substring(0, fileName.lastIndexOf('.'));
+    }
+    // ディレクトリパスを取得
+    String directory = imagePath.substring(0, imagePath.lastIndexOf('/') + 1);
+    return '$directory$fileName';
+  }
+
+  Widget _buildCharacterImage(Monster monster, ThemeData theme) {
+    if (monster.image == null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: AspectRatio(
+          aspectRatio: 1.0,
+          child: Container(
+            width: double.infinity,
+            color: theme.colorScheme.surfaceVariant,
+            child: Center(
+              child: Icon(
+                Icons.image_outlined,
+                size: 48,
+                color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+              ),
+            ),
           ),
         ),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: monster.skills.take(5).map((skill) {
+      );
+    }
+
+    // ベース名を取得
+    final baseName = _getBaseName(monster.image!);
+    final gifPath = '$baseName.gif';
+    final backgroundPath = '${baseName}_background.png';
+    final normalImagePath = monster.image!;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: AspectRatio(
+        aspectRatio: 1.0,
+        child: Container(
+          width: double.infinity,
+          color: theme.colorScheme.surfaceVariant,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // 背景画像（_background.pngがある場合はそれを使用、ない場合は通常の画像）
+              _buildImageWithFallback(
+                backgroundPath,
+                normalImagePath,
+                theme,
+                BoxFit.cover,
+              ),
+              // GIFアニメーション（存在する場合のみ表示）
+              _buildGifAnimation(
+                gifPath,
+                theme,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 画像を表示（フォールバック付き）
+  Widget _buildImageWithFallback(
+    String primaryPath,
+    String fallbackPath,
+    ThemeData theme,
+    BoxFit fit,
+  ) {
+    String assetPath = primaryPath;
+    if (kIsWeb && assetPath.startsWith('assets/')) {
+      assetPath = assetPath.substring(7);
+    }
+
+    return Image.asset(
+      assetPath,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) {
+        // フォールバック：通常の画像を表示
+        String fallbackAssetPath = fallbackPath;
+        if (kIsWeb && fallbackAssetPath.startsWith('assets/')) {
+          fallbackAssetPath = fallbackAssetPath.substring(7);
+        }
+        return Image.asset(
+          fallbackAssetPath,
+          fit: fit,
+          errorBuilder: (context, error, stackTrace) {
             return Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                skill,
-                style: TextStyle(
-                  color: Colors.blue.shade800,
-                  fontSize: 12,
+              color: theme.colorScheme.surfaceVariant,
+              child: Center(
+                child: Icon(
+                  Icons.image_outlined,
+                  size: 48,
+                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
                 ),
               ),
             );
-          }).toList(),
-        ),
-      ],
+          },
+        );
+      },
+    );
+  }
+
+  /// GIFアニメーションを表示
+  Widget _buildGifAnimation(
+    String gifPath,
+    ThemeData theme,
+  ) {
+    String assetPath = gifPath;
+    if (kIsWeb && assetPath.startsWith('assets/')) {
+      assetPath = assetPath.substring(7);
+    }
+
+    return Image.asset(
+      assetPath,
+      fit: BoxFit.contain,
+      errorBuilder: (context, error, stackTrace) {
+        // GIFが読み込めない場合は何も表示しない（背景画像のみ）
+        return const SizedBox.shrink();
+      },
     );
   }
 
@@ -538,62 +573,89 @@ class HomeScreen extends ConsumerWidget {
     BuildContext context,
     dynamic state,
     ThemeData theme,
+    WidgetRef ref,
     bool isMobile,
     bool isTablet,
   ) {
+    final isExpanded = state.userState.showUserStateDetails;
+    
     return Card(
+      color: theme.colorScheme.surfaceContainerHighest,
       child: Padding(
         padding: EdgeInsets.all(isMobile ? 12 : 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '現在の状態',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '現在の状態',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    ref.read(appStateProvider.notifier).setUserState(
+                      state.userState.copyWith(
+                        showUserStateDetails: !isExpanded,
+                      ),
+                    );
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            if (isExpanded) ...[
+              const SizedBox(height: 12),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final statGridWidth = constraints.maxWidth;
+                  int crossAxisCount;
+                  if (statGridWidth < 300) {
+                    crossAxisCount = 2;
+                  } else if (statGridWidth < 500) {
+                    crossAxisCount = 2;
+                  } else {
+                    crossAxisCount = 4;
+                  }
+                  
+                  return GridView.count(
+                    crossAxisCount: crossAxisCount,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    childAspectRatio: crossAxisCount == 2 ? 2.8 : 3.2,
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 12,
+                    children: [
+                      _StatItem(
+                        label: '本日の調停回数',
+                        value: state.userState.likesRemaining.toString(),
+                      ),
+                      _StatItem(
+                        label: '保有素材',
+                        value: '${state.inventory.length}',
+                      ),
+                      _StatItem(
+                        label: '系譜更新回数',
+                        value: state.userState.breedingCount.toString(),
+                      ),
+                      _StatItem(
+                        label: '契約成立数',
+                        value: state.collaborations.length.toString(),
+                      ),
+                    ],
+                  );
+                },
               ),
-            ),
-            const SizedBox(height: 12),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final statGridWidth = constraints.maxWidth;
-                int crossAxisCount;
-                if (statGridWidth < 300) {
-                  crossAxisCount = 2;
-                } else if (statGridWidth < 500) {
-                  crossAxisCount = 2;
-                } else {
-                  crossAxisCount = 4;
-                }
-                
-                return GridView.count(
-                  crossAxisCount: crossAxisCount,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  childAspectRatio: crossAxisCount == 2 ? 2.8 : 3.2,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 12,
-                  children: [
-                    _StatItem(
-                      label: 'いいね残量',
-                      value: state.userState.likesRemaining.toString(),
-                    ),
-                    _StatItem(
-                      label: '素材数',
-                      value: '${state.inventory.length}',
-                    ),
-                    _StatItem(
-                      label: '交配回数',
-                      value: state.userState.breedingCount.toString(),
-                    ),
-                    _StatItem(
-                      label: 'マッチング数',
-                      value: state.collaborations.length.toString(),
-                    ),
-                  ],
-                );
-              },
-            ),
+            ],
           ],
         ),
       ),
@@ -608,7 +670,7 @@ class HomeScreen extends ConsumerWidget {
     bool isTablet,
   ) {
     return Card(
-      color: Colors.blue.shade50,
+      color: theme.colorScheme.surfaceContainerHighest,
       child: Padding(
         padding: EdgeInsets.all(isMobile ? 12 : 14),
         child: Column(
@@ -619,25 +681,16 @@ class HomeScreen extends ConsumerWidget {
                 Icon(
                   Icons.flag,
                   size: isMobile ? 20 : 24,
-                  color: Colors.blue.shade700,
+                  color: theme.colorScheme.primary,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '配合目標（遠征準備）',
+                  '遠征準備',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade900,
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'マッチ/配合は"遠征準備の手段"として位置付けられます',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.7),
-                fontStyle: FontStyle.italic,
-              ),
             ),
             const SizedBox(height: 12),
             if (state.userState.targetSpecies != null) ...[
@@ -696,50 +749,91 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildHorizontalList(
+  // 第二層：直近の出来事（証跡）をログ形式で表示
+  Widget _buildEventLog(
     BuildContext context,
-    List items,
-    Monster Function(dynamic) monsterExtractor,
+    ThemeData theme,
+    List recentCollaborations,
+    List recentProduction,
     bool isMobile,
-    bool isTablet,
-    bool isDesktop,
   ) {
-    final cardWidth = isMobile ? 220.0 : isTablet ? 260.0 : 300.0;
-    // カードの高さは幅に基づいて計算（画像が正方形 + パディング + テキスト部分）
-    final imageHeight = cardWidth;
-    final padding = (kIsWeb ? 8.0 : 12.0) * 2; // 上下のパディング
-    final textHeight = isMobile ? 90.0 : isTablet ? 95.0 : 100.0; // テキスト部分の推定高さ（余裕を持たせる）
-    final cardHeight = imageHeight + padding + textHeight;
+    // 時系列でソート（新しい順）
+    final allEvents = <_EventItem>[];
     
-    return SizedBox(
-      height: cardHeight,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: items.length,
-        itemBuilder: (context, index) {
-          return SizedBox(
-            width: cardWidth,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: cardHeight,
-                ),
-                child: ClipRect(
-                  child: MonsterCard(
-                    monster: monsterExtractor(items[index]),
-                    imageFirst: true,
-                    onTap: () {},
-                  ),
+    for (var collab in recentCollaborations) {
+      allEvents.add(_EventItem(
+        type: _EventType.collaboration,
+        monster: collab.partner,
+        data: collab,
+        timestamp: collab.createdAt,
+      ));
+    }
+    
+    for (var prod in recentProduction) {
+      allEvents.add(_EventItem(
+        type: _EventType.production,
+        monster: prod.child,
+        data: prod,
+        timestamp: prod.createdAt,
+      ));
+    }
+    
+    allEvents.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    
+    return Card(
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Padding(
+        padding: EdgeInsets.all(isMobile ? 12 : 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: allEvents.take(5).map((event) {
+            String eventText;
+            VoidCallback? onTap;
+            
+            if (event.type == _EventType.collaboration) {
+              eventText = '${event.monster.name}と契約成立（継承枠+1の見込み）';
+              onTap = () => context.go('/collaborations');
+            } else {
+              final tags = event.monster.tags.join('、');
+              eventText = '交配で${event.monster.name}が誕生（${tags.isNotEmpty ? tags : "新しい個体"}）';
+              onTap = () => context.go('/history');
+            }
+            
+            return InkWell(
+              onTap: onTap,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    Icon(
+                      event.type == _EventType.collaboration
+                          ? Icons.handshake
+                          : Icons.auto_awesome,
+                      size: 20,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        eventText,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 20,
+                      color: theme.colorScheme.onSurface.withOpacity(0.4),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          );
-        },
+            );
+          }).toList(),
+        ),
       ),
     );
   }
-
+  
   Widget _buildEmptyState(BuildContext context, ThemeData theme) {
     return Center(
       child: Padding(
@@ -769,6 +863,7 @@ class HomeScreen extends ConsumerWidget {
     BuildContext context,
     dynamic state,
     ThemeData theme,
+    WidgetRef ref,
     bool isMobile,
     bool isTablet,
   ) {
@@ -776,111 +871,80 @@ class HomeScreen extends ConsumerWidget {
     final knowledge = assets.knowledge;
     final institution = assets.institution;
     final lineageCore = assets.lineageCore;
+    final isExpanded = state.userState.showPersistentAssetsDetails;
 
     return Card(
+      color: theme.colorScheme.surfaceContainerHighest,
       child: Padding(
         padding: EdgeInsets.all(isMobile ? 12 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.account_tree,
-                      size: isMobile ? 20 : 24,
-                      color: Colors.purple.shade700,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '永続資産（三層構造）',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.purple.shade900,
-                      ),
-                    ),
-                  ],
+                Icon(
+                  Icons.account_tree,
+                  size: isMobile ? 20 : 24,
+                  color: theme.colorScheme.primary,
                 ),
-                TextButton.icon(
-                  onPressed: () => context.go('/consultation-office'),
-                  icon: const Icon(Icons.business, size: 16),
-                  label: const Text('相談所へ'),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '継承の記録',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
+                ),
+                IconButton(
+                  icon: Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    ref.read(appStateProvider.notifier).setUserState(
+                      state.userState.copyWith(
+                        showPersistentAssetsDetails: !isExpanded,
+                      ),
+                    );
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              'リセットされるもの／残るものを三層に分けて表示',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                fontStyle: FontStyle.italic,
+            if (isExpanded) ...[
+              const SizedBox(height: 12),
+              // 第一層：知識（情報の継承）
+              _buildAssetRow(
+                context,
+                theme,
+                '知識',
+                '${knowledge.breedingRecipes.length}レシピ / ${knowledge.discoveredPatterns.length}パターン / ${knowledge.enemyEncyclopedia.length}敵',
+                Colors.orange,
+                Icons.lightbulb,
               ),
-            ),
-            const SizedBox(height: 12),
-            // 第一層：知識（情報の継承）
-            _buildAssetRow(
-              context,
-              theme,
-              '第一層：知識（情報の継承）',
-              '${knowledge.breedingRecipes.length}レシピ / ${knowledge.discoveredPatterns.length}パターン / ${knowledge.enemyEncyclopedia.length}敵',
-              Colors.orange,
-              Icons.lightbulb,
-            ),
-            const SizedBox(height: 8),
-            // 第二層：選択肢（手段の継承）
-            _buildAssetRow(
-              context,
-              theme,
-              '第二層：選択肢（手段の継承）',
-              'ランク${institution.consultationOfficeRank} / 契約枠${institution.contractSlots} / 行動${assets.choices.unlockedBondActions.length}個',
-              Colors.blue,
-              Icons.business,
-            ),
-            const SizedBox(height: 8),
-            // 第三層：系譜資産（配合の継承）
-            _buildAssetRow(
-              context,
-              theme,
-              '第三層：系譜資産（配合の継承）',
-              '継承枠${lineageCore.inheritanceSlots} / 記録${lineageCore.lineageRecords.length}件 / 特性${assets.lineageAssets.unlockedTraitSlots.length}個',
-              Colors.purple,
-              Icons.account_tree,
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.grey.shade300),
+              const SizedBox(height: 8),
+              // 第二層：選択肢（手段の継承）
+              _buildAssetRow(
+                context,
+                theme,
+                '制度',
+                'ランク${institution.consultationOfficeRank} / 契約枠${institution.contractSlots} / 行動${assets.choices.unlockedBondActions.length}個',
+                Colors.blue,
+                Icons.business,
               ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 16,
-                    color: Colors.grey.shade700,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'モンスターの強さは周回で揺れる。恒久的に残るのは選択肢の増加と知識。',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.grey.shade700,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 8),
+              // 第三層：系譜資産（配合の継承）
+              _buildAssetRow(
+                context,
+                theme,
+                '系譜コア',
+                '継承枠${lineageCore.inheritanceSlots} / 記録${lineageCore.lineageRecords.length}件 / 特性${assets.lineageAssets.unlockedTraitSlots.length}個',
+                Colors.purple,
+                Icons.account_tree,
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -930,134 +994,6 @@ class HomeScreen extends ConsumerWidget {
   }
 
 
-  // 世界の目標（公共指標）カード
-  Widget _buildWorldGoalsCard(
-    BuildContext context,
-    dynamic state,
-    ThemeData theme,
-    bool isMobile,
-    bool isTablet,
-  ) {
-    final metrics = state.publicMetrics;
-    
-    return Card(
-      color: Colors.green.shade50,
-      child: Padding(
-        padding: EdgeInsets.all(isMobile ? 12 : 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.public,
-                  size: isMobile ? 20 : 24,
-                  color: Colors.green.shade700,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '世界の目標（公共指標）',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade900,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildMetricRow(
-              context,
-              theme,
-              '封印の安定度',
-              '${(metrics.sealStability * 100).toStringAsFixed(0)}%',
-              metrics.sealStability,
-              Colors.blue,
-            ),
-            const SizedBox(height: 8),
-            _buildMetricRow(
-              context,
-              theme,
-              '最深部到達度',
-              '${(metrics.deepestReach * 100).toStringAsFixed(0)}%',
-              metrics.deepestReach,
-              Colors.purple,
-            ),
-            const SizedBox(height: 8),
-            _buildMetricRow(
-              context,
-              theme,
-              '瘴気後退率',
-              '${(metrics.miasmaRetreatRate * 100).toStringAsFixed(0)}%',
-              metrics.miasmaRetreatRate,
-              Colors.orange,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '救助数',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  '${metrics.rescuedResidents}人',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green.shade700,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMetricRow(
-    BuildContext context,
-    ThemeData theme,
-    String label,
-    String value,
-    double progress,
-    Color color,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            Text(
-              value,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: progress,
-            backgroundColor: color.withOpacity(0.2),
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-            minHeight: 6,
-          ),
-        ),
-      ],
-    );
-  }
 
 }
 
@@ -1100,4 +1036,23 @@ class _StatItem extends StatelessWidget {
       ],
     );
   }
+}
+
+class _EventItem {
+  final _EventType type;
+  final Monster monster;
+  final dynamic data;
+  final DateTime timestamp;
+
+  _EventItem({
+    required this.type,
+    required this.monster,
+    required this.data,
+    required this.timestamp,
+  });
+}
+
+enum _EventType {
+  collaboration,
+  production,
 }

@@ -4,6 +4,10 @@ class UserState {
   final int breedingCount;
   final String? targetSpecies;
   final List<String>? targetTags;
+  // ホーム画面の折りたたみ状態
+  final bool showWorldDetails;
+  final bool showPersistentAssetsDetails;
+  final bool showUserStateDetails;
 
   UserState({
     required this.likesRemaining,
@@ -11,6 +15,9 @@ class UserState {
     required this.breedingCount,
     this.targetSpecies,
     this.targetTags,
+    this.showWorldDetails = false,
+    this.showPersistentAssetsDetails = false,
+    this.showUserStateDetails = false,
   });
 
   UserState copyWith({
@@ -19,6 +26,9 @@ class UserState {
     int? breedingCount,
     String? targetSpecies,
     List<String>? targetTags,
+    bool? showWorldDetails,
+    bool? showPersistentAssetsDetails,
+    bool? showUserStateDetails,
   }) {
     return UserState(
       likesRemaining: likesRemaining ?? this.likesRemaining,
@@ -26,6 +36,9 @@ class UserState {
       breedingCount: breedingCount ?? this.breedingCount,
       targetSpecies: targetSpecies ?? this.targetSpecies,
       targetTags: targetTags ?? this.targetTags,
+      showWorldDetails: showWorldDetails ?? this.showWorldDetails,
+      showPersistentAssetsDetails: showPersistentAssetsDetails ?? this.showPersistentAssetsDetails,
+      showUserStateDetails: showUserStateDetails ?? this.showUserStateDetails,
     );
   }
 }

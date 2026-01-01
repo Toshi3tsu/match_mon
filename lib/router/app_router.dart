@@ -16,7 +16,7 @@ import '../models/collaboration.dart';
 import '../widgets/bottom_navigation.dart';
 
 final appRouter = GoRouter(
-  initialLocation: '/consultation-office',
+  initialLocation: '/',
   routes: [
     GoRoute(
       path: '/',
