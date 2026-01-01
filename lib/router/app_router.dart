@@ -11,11 +11,12 @@ import '../screens/dungeon_exploration_screen.dart';
 import '../screens/match_session_screen.dart';
 import '../screens/consultation_office_screen.dart';
 import '../screens/expedition_result_screen.dart';
+import '../screens/inventory_screen.dart';
 import '../models/collaboration.dart';
 import '../widgets/bottom_navigation.dart';
 
 final appRouter = GoRouter(
-  initialLocation: '/',
+  initialLocation: '/consultation-office',
   routes: [
     GoRoute(
       path: '/',
@@ -24,6 +25,15 @@ final appRouter = GoRouter(
         bottomNavigationBar: BottomNavigation(currentPath: '/'),
       ),
     ),
+    // 相談所（受付画面）
+    GoRoute(
+      path: '/consultation-office',
+      builder: (context, state) => Scaffold(
+        body: const ConsultationOfficeScreen(),
+        bottomNavigationBar: BottomNavigation(currentPath: '/consultation-office'),
+      ),
+    ),
+    // 探す（相談所から遷移、下部タブなし）
     GoRoute(
       path: '/discover',
       builder: (context, state) => Scaffold(
@@ -31,6 +41,7 @@ final appRouter = GoRouter(
         bottomNavigationBar: BottomNavigation(currentPath: '/discover'),
       ),
     ),
+    // マッチ一覧（相談所から遷移、下部タブなし）
     GoRoute(
       path: '/collaborations',
       builder: (context, state) => Scaffold(
@@ -38,6 +49,7 @@ final appRouter = GoRouter(
         bottomNavigationBar: BottomNavigation(currentPath: '/collaborations'),
       ),
     ),
+    // 配合プランナー（相談所から遷移、下部タブなし）
     GoRoute(
       path: '/production',
       builder: (context, state) => Scaffold(
@@ -55,6 +67,14 @@ final appRouter = GoRouter(
           },
         ),
       ],
+    ),
+    // 所持一覧（下部タブあり）
+    GoRoute(
+      path: '/inventory',
+      builder: (context, state) => Scaffold(
+        body: const InventoryScreen(),
+        bottomNavigationBar: BottomNavigation(currentPath: '/inventory'),
+      ),
     ),
     GoRoute(
       path: '/settings',
@@ -90,13 +110,6 @@ final appRouter = GoRouter(
           body: MatchSessionScreen(collaboration: collaboration),
         );
       },
-    ),
-    GoRoute(
-      path: '/consultation-office',
-      builder: (context, state) => Scaffold(
-        body: const ConsultationOfficeScreen(),
-        bottomNavigationBar: BottomNavigation(currentPath: '/consultation-office'),
-      ),
     ),
   ],
 );

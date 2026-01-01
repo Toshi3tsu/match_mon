@@ -520,9 +520,9 @@ class HomeScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         ElevatedButton.icon(
-          onPressed: () => context.go('/production'),
-          icon: const Icon(Icons.science, size: 18),
-          label: const Text('交配プランナーへ'),
+          onPressed: () => context.go('/consultation-office'),
+          icon: const Icon(Icons.business, size: 18),
+          label: const Text('相談所へ'),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(
               horizontal: 20,
@@ -655,15 +655,9 @@ class HomeScreen extends ConsumerWidget {
               runSpacing: 8,
               children: [
                 CustomButton(
-                  text: '探す（マッチング）',
-                  onPressed: () => context.go('/discover'),
+                  text: '相談所へ',
+                  onPressed: () => context.go('/consultation-office'),
                   variant: ButtonVariant.primary,
-                  size: ButtonSize.small,
-                ),
-                CustomButton(
-                  text: '交配（準備）',
-                  onPressed: () => context.go('/production'),
-                  variant: ButtonVariant.secondary,
                   size: ButtonSize.small,
                 ),
               ],
@@ -760,8 +754,8 @@ class HomeScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             CustomButton(
-              text: '探すを始める',
-              onPressed: () => context.go('/discover'),
+              text: '相談所へ',
+              onPressed: () => context.go('/consultation-office'),
               variant: ButtonVariant.primary,
               size: ButtonSize.medium,
             ),
@@ -810,7 +804,7 @@ class HomeScreen extends ConsumerWidget {
                   ],
                 ),
                 TextButton.icon(
-                  onPressed: () => context.go('/discover'),
+                  onPressed: () => context.go('/consultation-office'),
                   icon: const Icon(Icons.business, size: 16),
                   label: const Text('相談所へ'),
                   style: TextButton.styleFrom(
