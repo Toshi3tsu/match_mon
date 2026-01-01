@@ -2,6 +2,8 @@
 
 「配合×マッチング」要素のUI/UXを検証するためのFlutterアプリケーションです。
 
+A game of monster breeding and matching to save the fantasy world
+
 ## 概要
 
 このアプリは、Next.jsで実装されたMatchMonプロジェクトをFlutterでリファクタリングしたものです。配合システムに「マッチングアプリ的な体験」を組み込んだときの、候補提示、スワイプ、マッチ成立、関係値（ボンド）強化、配合プランニング、配合結果提示までの一連のUI/UXを検証することを目的としています。
