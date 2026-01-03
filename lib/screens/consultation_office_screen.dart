@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/app_state_provider.dart';
@@ -39,11 +40,8 @@ class ConsultationOfficeScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 24),
-                  // 受付の人のイラストまたはアバター
-                  _buildReceptionistAvatar(context, theme, isMobile),
-                  const SizedBox(height: 24),
-                  // 受付の人の質問
-                  _buildReceptionistQuestion(context, theme),
+                  // 背景画像と質問文を重ねたウィジェット
+                  _buildReceptionistWithBackground(context, theme, isMobile, isTablet, isDesktop),
                   const SizedBox(height: 32),
                   // 3つの選択肢ボタン
                   _buildServiceOptions(context, theme, state, isMobile),
@@ -59,63 +57,114 @@ class ConsultationOfficeScreen extends ConsumerWidget {
     );
   }
 
-  /// 受付の人のアバター表示
-  Widget _buildReceptionistAvatar(
+  /// 背景画像と質問文を重ねたウィジェット
+  Widget _buildReceptionistWithBackground(
     BuildContext context,
     ThemeData theme,
     bool isMobile,
+    bool isTablet,
+    bool isDesktop,
   ) {
-    return Container(
-      width: isMobile ? 120 : 150,
-      height: isMobile ? 120 : 150,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: theme.colorScheme.primaryContainer,
-        border: Border.all(
-          color: theme.colorScheme.primary,
-          width: 3,
+    // 画像の最大幅と高さを設定
+    final maxWidth = isDesktop ? 800.0 : (isTablet ? 600.0 : double.infinity);
+    final maxHeight = isMobile ? 400.0 : (isTablet ? 500.0 : 600.0);
+    
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: maxWidth,
+          maxHeight: maxHeight,
         ),
-      ),
-      child: Icon(
-        Icons.person,
-        size: isMobile ? 60 : 80,
-        color: theme.colorScheme.onPrimaryContainer,
+        child: Stack(
+          children: [
+            // 背景画像
+            _buildCouncillorImage(theme, maxHeight),
+            // 質問文を画像の下部に半透明で重ねる
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(16),
+                    bottomRight: Radius.circular(16),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      '受付',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: Colors.white.withOpacity(0.9),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'どのようなご用件でしょうか？',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  /// 受付の人の質問
-  Widget _buildReceptionistQuestion(
-    BuildContext context,
-    ThemeData theme,
-  ) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: theme.colorScheme.outline.withOpacity(0.2),
-        ),
+  /// Councillor画像を表示
+  Widget _buildCouncillorImage(ThemeData theme, double maxHeight) {
+    const imagePath = 'assets/characters/Councillor.png';
+    
+    String assetPath = imagePath;
+    if (kIsWeb && assetPath.startsWith('assets/')) {
+      assetPath = assetPath.substring(7);
+    }
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: maxHeight,
       ),
-      child: Column(
-        children: [
-          Text(
-            '受付',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.bold,
+      child: Image.asset(
+        assetPath,
+        fit: BoxFit.contain,
+        width: double.infinity,
+        errorBuilder: (context, error, stackTrace) {
+          // エラー時はフォールバック表示
+          return Container(
+            height: maxHeight,
+            color: theme.colorScheme.surfaceVariant,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.image_outlined,
+                    size: 48,
+                    color: theme.colorScheme.onSurfaceVariant.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '画像を読み込めませんでした',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'どのようなご用件でしょうか？',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          );
+        },
       ),
     );
   }

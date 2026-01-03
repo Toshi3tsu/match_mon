@@ -2,6 +2,7 @@ import 'dart:math';
 import '../models/monster.dart';
 import '../models/production.dart';
 import '../data/mock_data.dart';
+import '../data/species_master_data.dart';
 
 class ProductionService {
   // 交配プレビューを生成
@@ -110,16 +111,34 @@ class ProductionService {
         .take(preview.inheritanceSlots)
         .toList();
 
+    // 性別はランダムに決定（50%の確率でオス/メス）
+    final gender = random.nextBool() ? "male" : "female";
+    
+    // 個体の偏差値をサンプリング（性別に応じた正規分布から）
+    final individualDeviationValue = sampleIndividualDeviationValue(gender);
+    
+    // パラメータごとの成長カーブを設定
+    final parameterGrowthCurves = getDefaultParameterGrowthCurves();
+    
+    // 魅力値の初期値を計算（メス個体の場合は繁殖期のピークを考慮）
+    final charm = gender == "female" ? 50 : 50; // 初期値は同じ、成長で差が出る
+    
     return Monster(
       id: "child_${DateTime.now().millisecondsSinceEpoch}",
       name: preview.childSpecies,
       species: preview.childSpecies,
       rank: preview.childRank,
+      gender: gender,
+      age: 0, // 誕生時は0ターン目
+      lifespan: 40, // おおむね40ターン
       tags: preview.childTags,
       profile: "${parentA.name}と${parentB.name}の子。",
       locked: false,
       skills: inheritedSkills,
       geneSeed: "${parentA.geneSeed}_${parentB.geneSeed}",
+      individualDeviationValue: individualDeviationValue,
+      charm: charm,
+      parameterGrowthCurves: parameterGrowthCurves,
     );
   }
 }

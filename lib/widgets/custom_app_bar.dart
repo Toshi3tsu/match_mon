@@ -9,6 +9,7 @@ class CustomAppBar extends ConsumerWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final Widget? bottom;
   final bool automaticallyImplyLeading;
+  final String? fallbackRoute;
 
   const CustomAppBar({
     super.key,
@@ -16,6 +17,7 @@ class CustomAppBar extends ConsumerWidget implements PreferredSizeWidget {
     this.actions,
     this.bottom,
     this.automaticallyImplyLeading = true,
+    this.fallbackRoute,
   });
 
   @override
@@ -61,7 +63,7 @@ class CustomAppBar extends ConsumerWidget implements PreferredSizeWidget {
                 if (context.canPop()) {
                   context.pop();
                 } else {
-                  context.go('/');
+                  context.go(fallbackRoute ?? '/');
                 }
               },
             )

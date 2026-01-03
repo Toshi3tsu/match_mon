@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/custom_app_bar.dart';
 import '../widgets/tag_widget.dart';
 import '../widgets/custom_button.dart';
+import '../widgets/contract_settings_dialog.dart';
 import '../models/dungeon.dart';
 
 class DungeonExplorationScreen extends ConsumerWidget {
@@ -21,77 +23,100 @@ class DungeonExplorationScreen extends ConsumerWidget {
       appBar: const CustomAppBar(
         title: '深層ダンジョン探索',
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.grey.shade900,
-              Colors.grey.shade800,
-              Colors.grey.shade900,
-            ],
-          ),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final screenWidth = constraints.maxWidth;
-            final isMobile = screenWidth < 600;
-            final isTablet = screenWidth >= 600 && screenWidth < 1200;
-            final isDesktop = screenWidth >= 1200;
+      body: Stack(
+        children: [
+          // 背景画像
+          if (explorationState.currentNodeId == null && explorationState.contractSettings == null)
+            Positioned.fill(
+              child: _buildBackgroundImage(context),
+            )
+          else
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.grey.shade900,
+                    Colors.grey.shade800,
+                    Colors.grey.shade900,
+                  ],
+                ),
+              ),
+            ),
+          // メインコンテンツ
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final screenWidth = constraints.maxWidth;
+              final isMobile = screenWidth < 600;
+              final isTablet = screenWidth >= 600 && screenWidth < 1200;
+              final isDesktop = screenWidth >= 1200;
 
-            return Column(
-              children: [
-                // HUD（常時表示）
-                _buildHUD(context, theme, explorationState.hud, isMobile),
-                const Divider(height: 1),
-                // メインコンテンツ
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isMobile ? 8 : isTablet ? 12 : 16,
-                      vertical: isMobile ? 8 : 12,
-                    ),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: isDesktop ? 1600 : double.infinity,
+              // 探索開始前（契約設定がない場合）はHUDと撤退ボタンを非表示
+              if (explorationState.contractSettings == null && explorationState.currentNodeId == null) {
+                return _buildNodeMap(
+                  context,
+                  theme,
+                  explorationState,
+                  ref,
+                  isMobile,
+                  isTablet,
+                );
+              }
+
+              return Column(
+                children: [
+                  // HUD（常時表示）
+                  _buildHUD(context, theme, explorationState.hud, explorationState.contractSettings, explorationState.history, ref, isMobile),
+                  const Divider(height: 1),
+                  // メインコンテンツ
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isMobile ? 8 : isTablet ? 12 : 16,
+                        vertical: isMobile ? 8 : 12,
                       ),
-                      child: currentNode == null
-                          ? _buildNodeMap(
-                              context,
-                              theme,
-                              explorationState,
-                              ref,
-                              isMobile,
-                              isTablet,
-                            )
-                          : explorationState.isInRoom
-                              ? _buildRoomView(
-                                  context,
-                                  theme,
-                                  currentNode,
-                                  explorationState,
-                                  ref,
-                                  isMobile,
-                                  isTablet,
-                                )
-                              : _buildNodeMap(
-                                  context,
-                                  theme,
-                                  explorationState,
-                                  ref,
-                                  isMobile,
-                                  isTablet,
-                                ),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: isDesktop ? 1600 : double.infinity,
+                        ),
+                        child: currentNode == null
+                            ? _buildNodeMap(
+                                context,
+                                theme,
+                                explorationState,
+                                ref,
+                                isMobile,
+                                isTablet,
+                              )
+                            : explorationState.isInRoom
+                                ? _buildRoomView(
+                                    context,
+                                    theme,
+                                    currentNode,
+                                    explorationState,
+                                    ref,
+                                    isMobile,
+                                    isTablet,
+                                  )
+                                : _buildNodeMap(
+                                    context,
+                                    theme,
+                                    explorationState,
+                                    ref,
+                                    isMobile,
+                                    isTablet,
+                                  ),
+                      ),
                     ),
                   ),
-                ),
-                // 撤退ボタン（常時表示）
-                _buildRetreatButton(context, theme, ref, isMobile),
-              ],
-            );
-          },
-        ),
+                  // 撤退ボタン（常時表示）
+                  _buildRetreatButton(context, theme, ref, isMobile),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -101,59 +126,155 @@ class DungeonExplorationScreen extends ConsumerWidget {
     BuildContext context,
     ThemeData theme,
     ExplorationHUD hud,
+    ContractSettings? contractSettings,
+    ExplorationHistory history,
+    WidgetRef ref,
     bool isMobile,
   ) {
     return Container(
       padding: EdgeInsets.all(isMobile ? 8 : 12),
       color: Colors.grey.shade800.withOpacity(0.9),
-      child: Row(
+      child: Column(
         children: [
-          // 生存資源
-          Expanded(
-            child: _buildResourceSection(
-              context,
-              theme,
-              '生存資源',
-              [
-                _buildStatRow('HP', '${hud.hp} / ${hud.maxHp}'),
-                _buildStatRow('回復回数', hud.recoveryCount.toString()),
-              ],
-              Colors.green,
-              isMobile,
-            ),
+          Row(
+            children: [
+              // 生存資源
+              Expanded(
+                child: _buildResourceSection(
+                  context,
+                  theme,
+                  '生存資源',
+                  [
+                    _buildStatRow('HP', '${hud.hp} / ${hud.maxHp}'),
+                    _buildStatRow('回復回数', hud.recoveryCount.toString()),
+                  ],
+                  Colors.green,
+                  isMobile,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // 継続リスク
+              Expanded(
+                child: _buildResourceSection(
+                  context,
+                  theme,
+                  '継続リスク',
+                  [
+                    _buildStatRow('ストレス', '${hud.stress} / ${hud.maxStress}'),
+                  ],
+                  Colors.red,
+                  isMobile,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // 持ち帰り資産
+              Expanded(
+                child: _buildResourceSection(
+                  context,
+                  theme,
+                  '持ち帰り資産',
+                  [
+                    _buildStatRow('確定', _formatAssets(hud.securedAssets)),
+                    _buildStatRow('未確定', _formatAssets(hud.unsecuredAssets)),
+                  ],
+                  Colors.blue,
+                  isMobile,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          // 継続リスク
-          Expanded(
-            child: _buildResourceSection(
-              context,
-              theme,
-              '継続リスク',
-              [
-                _buildStatRow('ストレス', '${hud.stress} / ${hud.maxStress}'),
+          const SizedBox(height: 8),
+          // 契約設定と履歴ボタン
+          Row(
+            children: [
+              if (contractSettings != null) ...[
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade900.withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.assignment, size: 16, color: Colors.blue),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '契約設定',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.blue.shade300,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '階層: ${_getTargetFloorLabel(contractSettings.targetFloor)} | '
+                                'リスク: ${_getRiskToleranceLabel(contractSettings.riskTolerance)} | '
+                                '目的: ${_getPriorityObjectiveLabel(contractSettings.priorityObjective)}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.blue.shade200,
+                                  fontSize: 10,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
               ],
-              Colors.red,
-              isMobile,
-            ),
-          ),
-          const SizedBox(width: 8),
-          // 持ち帰り資産
-          Expanded(
-            child: _buildResourceSection(
-              context,
-              theme,
-              '持ち帰り資産',
-              [
-                _buildStatRow('確定', _formatAssets(hud.securedAssets)),
-                _buildStatRow('未確定', _formatAssets(hud.unsecuredAssets)),
-              ],
-              Colors.blue,
-              isMobile,
-            ),
+              IconButton(
+                icon: const Icon(Icons.history, size: 20),
+                tooltip: '探索履歴',
+                onPressed: () => _showFullHistory(context, ref),
+                color: Colors.white,
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+
+  String _getTargetFloorLabel(TargetFloor floor) {
+    switch (floor) {
+      case TargetFloor.middle:
+        return '中層';
+      case TargetFloor.deep:
+        return '深層';
+      case TargetFloor.deepest:
+        return '最深部';
+    }
+  }
+
+  String _getRiskToleranceLabel(RiskTolerance risk) {
+    switch (risk) {
+      case RiskTolerance.aggressive:
+        return '積極的';
+      case RiskTolerance.standard:
+        return '標準';
+      case RiskTolerance.cautious:
+        return '慎重';
+    }
+  }
+
+  String _getPriorityObjectiveLabel(PriorityObjective objective) {
+    switch (objective) {
+      case PriorityObjective.wedge:
+        return '楔';
+      case PriorityObjective.resource:
+        return '資源';
+      case PriorityObjective.lineageMaterial:
+        return '系譜';
+    }
   }
 
   Widget _buildResourceSection(
@@ -244,73 +365,40 @@ class DungeonExplorationScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
         ],
-        // 次のノード選択
-        if (nextNodes.isNotEmpty) ...[
-          Text(
-            '次のノードを選択',
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: nextNodes
-                .map((node) => _buildNodeCard(
-                      context,
-                      theme,
-                      node,
-                      () => _enterNode(context, ref, node.id),
-                      isMobile,
-                      isTablet,
-                    ))
-                .toList(),
-          ),
-        ] else if (currentNode == null) ...[
-          // 開始ノードがない場合（探索開始前）
-          // 開始ノード（'start'）を直接表示
-          if (state.nodes.containsKey('start')) ...[
+        // 契約設定がある場合は手動選択を非表示（自動進行）
+        if (state.contractSettings == null) ...[
+          // 次のノード選択（契約設定がない場合のみ表示）
+          if (nextNodes.isNotEmpty) ...[
             Text(
-              '探索を開始',
+              '次のノードを選択',
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
             const SizedBox(height: 12),
-            _buildNodeCard(
-              context,
-              theme,
-              state.nodes['start']!,
-              () => _startExploration(context, ref),
-              isMobile,
-              isTablet,
-            ),
-          ] else ...[
-            // 開始ノードが見つからない場合
-            Center(
-              child: Column(
-                children: [
-                  const Icon(Icons.explore, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(
-                    '探索を開始する準備ができています',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  CustomButton(
-                    text: '探索を開始',
-                    onPressed: () => _startExploration(context, ref),
-                    variant: ButtonVariant.primary,
-                  ),
-                ],
-              ),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: nextNodes
+                  .map((node) => _buildNodeCard(
+                        context,
+                        theme,
+                        node,
+                        () => _enterNode(context, ref, node.id),
+                        isMobile,
+                        isTablet,
+                      ))
+                  .toList(),
             ),
           ],
+        ] else ...[
+          // 契約設定がある場合：自動進行中の表示
+          _buildAutoExplorationView(context, theme, state, ref, isMobile, isTablet),
+        ],
+        if (currentNode == null && state.contractSettings == null) ...[
+          // 探索開始前：入口の選択画面
+          _buildEntranceView(context, theme, ref, isMobile, isTablet),
         ],
       ],
     );
@@ -640,8 +728,17 @@ class DungeonExplorationScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               CustomButton(
-                text: '戦闘を開始',
-                onPressed: () => _completeCombatNode(context, ref, node, true),
+                text: '自動戦闘を実行',
+                onPressed: () {
+                  // 自動戦闘を実行
+                  ref.read(appStateProvider.notifier).executeAutoCombat(node.id);
+                  // 戦闘履歴を表示
+                  _showCombatHistory(context, ref);
+                  // 部屋から出る
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    ref.read(appStateProvider.notifier).exitRoom();
+                  });
+                },
                 variant: ButtonVariant.primary,
               ),
             ],
@@ -756,10 +853,16 @@ class DungeonExplorationScreen extends ConsumerWidget {
             ],
             const SizedBox(height: 16),
             CustomButton(
-              text: '戦闘開始',
+              text: '自動戦闘を実行',
               onPressed: () {
-                // 簡易的な自動戦闘（常に勝利）
-                _completeCombatNode(context, ref, node, true);
+                // 自動戦闘を実行
+                ref.read(appStateProvider.notifier).executeAutoCombat(node.id);
+                // 戦闘履歴を表示
+                _showCombatHistory(context, ref);
+                // 部屋から出る
+                Future.delayed(const Duration(milliseconds: 500), () {
+                  ref.read(appStateProvider.notifier).exitRoom();
+                });
               },
               variant: ButtonVariant.primary,
               size: ButtonSize.large,
@@ -849,6 +952,8 @@ class DungeonExplorationScreen extends ConsumerWidget {
     bool isMobile,
     bool isTablet,
   ) {
+    final state = ref.watch(appStateProvider);
+    final explorationState = state.dungeonExplorationState;
     return Card(
       elevation: 8,
       color: Colors.purple.shade900.withOpacity(0.8),
@@ -902,13 +1007,37 @@ class DungeonExplorationScreen extends ConsumerWidget {
               }),
             ),
             const SizedBox(height: 8),
-            _buildEventChoice(
-              context,
-              theme,
-              '無視する',
-              '何も起こらない',
-              () => _completeEventNode(context, ref, node, {}),
-            ),
+            // 契約設定がある場合は手動選択を非表示（自動進行）
+            if (explorationState.contractSettings == null) ...[
+              _buildEventChoice(
+                context,
+                theme,
+                '無視する',
+                '何も起こらない',
+                () => _completeEventNode(context, ref, node, {}),
+              ),
+            ] else ...[
+              // 自動進行中：選択肢を非表示
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.purple.shade800.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(width: 12),
+                    Text(
+                      '契約に基づいて自動的に選択中...',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -1052,6 +1181,8 @@ class DungeonExplorationScreen extends ConsumerWidget {
     bool isMobile,
     bool isTablet,
   ) {
+    final state = ref.watch(appStateProvider);
+    final explorationState = state.dungeonExplorationState;
     return Card(
       elevation: 8,
       color: Colors.blue.shade900.withOpacity(0.8),
@@ -1107,18 +1238,42 @@ class DungeonExplorationScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            CustomButton(
-              text: '交渉する（契約条項を獲得）',
-              onPressed: () => _completeContractNode(context, ref, node),
-              variant: ButtonVariant.primary,
-            ),
-            const SizedBox(height: 8),
-            CustomButton(
-              text: '見送る',
-              onPressed: () => _completeContractNode(context, ref, node, skip: true),
-              variant: ButtonVariant.secondary,
-            ),
+            // 契約設定がある場合は手動選択を非表示（自動進行）
+            if (explorationState.contractSettings == null) ...[
+              const SizedBox(height: 16),
+              CustomButton(
+                text: '交渉する（契約条項を獲得）',
+                onPressed: () => _completeContractNode(context, ref, node),
+                variant: ButtonVariant.primary,
+              ),
+              const SizedBox(height: 8),
+              CustomButton(
+                text: '見送る',
+                onPressed: () => _completeContractNode(context, ref, node, skip: true),
+                variant: ButtonVariant.secondary,
+              ),
+            ] else ...[
+              // 自動進行中：選択肢を非表示
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade800.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(width: 12),
+                    Text(
+                      '契約に基づいて自動的に交渉中...',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -1133,6 +1288,8 @@ class DungeonExplorationScreen extends ConsumerWidget {
     bool isMobile,
     bool isTablet,
   ) {
+    final state = ref.watch(appStateProvider);
+    final explorationState = state.dungeonExplorationState;
     return Card(
       elevation: 8,
       color: Colors.orange.shade900.withOpacity(0.8),
@@ -1182,18 +1339,42 @@ class DungeonExplorationScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            CustomButton(
-              text: '資源を精錬する（資源 +2）',
-              onPressed: () => _completeRefinementNode(context, ref, node),
-              variant: ButtonVariant.primary,
-            ),
-            const SizedBox(height: 8),
-            CustomButton(
-              text: '何もしない',
-              onPressed: () => _completeRefinementNode(context, ref, node, skip: true),
-              variant: ButtonVariant.secondary,
-            ),
+            // 契約設定がある場合は手動選択を非表示（自動進行）
+            if (explorationState.contractSettings == null) ...[
+              const SizedBox(height: 16),
+              CustomButton(
+                text: '資源を精錬する（資源 +2）',
+                onPressed: () => _completeRefinementNode(context, ref, node),
+                variant: ButtonVariant.primary,
+              ),
+              const SizedBox(height: 8),
+              CustomButton(
+                text: '何もしない',
+                onPressed: () => _completeRefinementNode(context, ref, node, skip: true),
+                variant: ButtonVariant.secondary,
+              ),
+            ] else ...[
+              // 自動進行中：選択肢を非表示
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade800.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const CircularProgressIndicator(),
+                    const SizedBox(width: 12),
+                    Text(
+                      '契約に基づいて自動的に精錬中...',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -1265,25 +1446,25 @@ class DungeonExplorationScreen extends ConsumerWidget {
     );
   }
 
-  void _startExploration(BuildContext context, WidgetRef ref) {
-    // 開始ノード（'start'）に入る
+  void _startExploration(BuildContext context, WidgetRef ref) async {
+    // 契約設定ダイアログを表示
     final state = ref.read(appStateProvider);
     final explorationState = state.dungeonExplorationState;
     
-    // 'start'ノードが存在するか確認
-    if (explorationState.nodes.containsKey('start')) {
-      ref.read(appStateProvider.notifier).enterDungeonNode('start');
-    } else {
-      // 開始ノードがない場合は、最初のノードを探す
-      if (explorationState.nodes.isNotEmpty) {
-        final firstNodeId = explorationState.nodes.keys.first;
-        ref.read(appStateProvider.notifier).enterDungeonNode(firstNodeId);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('探索可能なノードが見つかりません。')),
-        );
-      }
-    }
+    final settings = await showDialog<ContractSettings>(
+      context: context,
+      builder: (context) => ContractSettingsDialog(
+        initialSettings: explorationState.contractSettings,
+      ),
+    );
+
+    if (settings == null) return; // キャンセルされた場合
+
+    // 契約設定を保存
+    ref.read(appStateProvider.notifier).setContractSettings(settings);
+
+    // 自動探索を開始
+    ref.read(appStateProvider.notifier).proceedAutoExploration();
   }
 
   void _enterNode(BuildContext context, WidgetRef ref, String nodeId) {
@@ -1435,40 +1616,6 @@ class DungeonExplorationScreen extends ConsumerWidget {
     ref.read(appStateProvider.notifier).exitRoom();
   }
 
-  // 戦闘ノード完了
-  void _completeCombatNode(
-    BuildContext context,
-    WidgetRef ref,
-    DungeonNode node,
-    bool victory,
-  ) {
-    final state = ref.read(appStateProvider);
-    final hud = state.dungeonExplorationState.hud;
-    
-    if (victory) {
-      // 勝利時の報酬
-      final rewardType = _getRewardCategoryAssetType(node.rewardCategory);
-      ref.read(appStateProvider.notifier).addSecuredAsset(rewardType, 1);
-      
-      // HP減少（戦闘ダメージ）
-      final damage = node.dangerLevel == DangerLevel.high ? 30 : 
-                     node.dangerLevel == DangerLevel.medium ? 20 : 10;
-      final newHp = (hud.hp - damage).clamp(0, hud.maxHp);
-      final newHud = hud.copyWith(hp: newHp);
-      ref.read(appStateProvider.notifier).updateExplorationHUD(newHud);
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('勝利！${_getRewardCategoryLabel(node.rewardCategory)}を獲得（HP -$damage）')),
-      );
-    } else {
-      // 敗北時は撤退
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('敗北しました...')),
-      );
-    }
-    
-    ref.read(appStateProvider.notifier).exitRoom();
-  }
 
   String _getRewardTypeLabel(String type) {
     switch (type) {
@@ -1485,17 +1632,431 @@ class DungeonExplorationScreen extends ConsumerWidget {
     }
   }
 
-  String _getRewardCategoryAssetType(RewardCategory category) {
-    switch (category) {
-      case RewardCategory.resource:
-        return 'resource';
-      case RewardCategory.information:
-        return 'information';
-      case RewardCategory.lineageMaterial:
-        return 'lineageMaterial';
-      case RewardCategory.contractClause:
-        return 'contractClause';
+
+  // 戦闘履歴を表示
+  void _showCombatHistory(BuildContext context, WidgetRef ref) {
+    final state = ref.read(appStateProvider);
+    final history = state.dungeonExplorationState.history;
+    final latestEntry = history.combatEntries.isNotEmpty
+        ? history.combatEntries.last
+        : null;
+
+    if (latestEntry == null) return;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('戦闘結果'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                latestEntry.nodeName,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(latestEntry.description),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(
+                    latestEntry.victory ? Icons.check_circle : Icons.cancel,
+                    color: latestEntry.victory ? Colors.green : Colors.red,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    latestEntry.victory ? '勝利' : '敗北',
+                    style: TextStyle(
+                      color: latestEntry.victory ? Colors.green : Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text('受けたダメージ: ${latestEntry.damageTaken}'),
+              if (latestEntry.rewards.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                const Text('獲得報酬:'),
+                ...latestEntry.rewards.entries.map((e) => 
+                  Text('  ${_getRewardTypeLabel(e.key)}: ${e.value}')
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('閉じる'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _showFullHistory(context, ref);
+            },
+            child: const Text('全履歴を見る'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 全戦闘履歴を表示
+  void _showFullHistory(BuildContext context, WidgetRef ref) {
+    final state = ref.read(appStateProvider);
+    final history = state.dungeonExplorationState.history;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('探索履歴'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('現在の階層: ${history.currentFloor}'),
+                Text('確保した楔: ${history.wedgesSecured}'),
+                const SizedBox(height: 16),
+                const Text(
+                  '戦闘履歴',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                if (history.combatEntries.isEmpty)
+                  const Text('戦闘履歴はありません。')
+                else
+                  ...history.combatEntries.map((entry) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                entry.victory ? Icons.check_circle : Icons.cancel,
+                                color: entry.victory ? Colors.green : Colors.red,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  entry.nodeName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '${entry.timestamp.hour}:${entry.timestamp.minute.toString().padLeft(2, '0')}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            entry.description,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade700,
+                            ),
+                          ),
+                          if (entry.rewards.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              '報酬: ${entry.rewards.entries.map((e) => '${_getRewardTypeLabel(e.key)} ${e.value}').join(', ')}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  )),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('閉じる'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 自動探索中の表示
+  Widget _buildAutoExplorationView(
+    BuildContext context,
+    ThemeData theme,
+    DungeonExplorationState state,
+    WidgetRef ref,
+    bool isMobile,
+    bool isTablet,
+  ) {
+    final currentNode = state.getCurrentNode();
+    final history = state.history;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 現在の状態
+        if (currentNode != null) ...[
+          Card(
+            elevation: 8,
+            color: Colors.grey.shade800.withOpacity(0.9),
+            child: Padding(
+              padding: EdgeInsets.all(isMobile ? 12 : isTablet ? 16 : 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          '自動探索中: ${currentNode.name}',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    '契約設定に基づいて自動的に進行しています...',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey.shade300,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+        // 探索履歴の表示
+        if (history.combatEntries.isNotEmpty || history.eventEntries.isNotEmpty) ...[
+          Text(
+            '探索履歴',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...history.combatEntries.map((entry) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Card(
+              color: Colors.grey.shade800.withOpacity(0.5),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Icon(
+                      entry.victory ? Icons.check_circle : Icons.cancel,
+                      color: entry.victory ? Colors.green : Colors.red,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            entry.nodeName,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            entry.description,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: Colors.grey.shade300,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )),
+          ...history.eventEntries.map((entry) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Card(
+              color: Colors.grey.shade800.withOpacity(0.5),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info, color: Colors.blue, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        entry,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.grey.shade300,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )),
+        ],
+      ],
+    );
+  }
+
+  // 背景画像（GIFアニメーション）を表示（Web対応）
+  Widget _buildBackgroundImage(BuildContext context) {
+    String assetPath = 'assets/field/Dungeon.gif';
+    // Flutter Webでは、pubspec.yamlでassets/と指定しているため、
+    // コード内のパス（assets/...）からassets/プレフィックスを削除
+    if (kIsWeb) {
+      if (assetPath.startsWith('assets/')) {
+        assetPath = assetPath.substring(7); // "assets/" の7文字を削除
+      }
     }
+
+    return Image.asset(
+      assetPath,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        // アセットが見つからない場合のフォールバック
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.grey.shade900,
+                Colors.grey.shade800,
+                Colors.grey.shade900,
+              ],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.image_not_supported, size: 64, color: Colors.grey),
+                const SizedBox(height: 16),
+                Text(
+                  '背景画像を読み込めませんでした',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // 入口の選択画面（背景画像上に半透明オーバーレイ）
+  Widget _buildEntranceView(
+    BuildContext context,
+    ThemeData theme,
+    WidgetRef ref,
+    bool isMobile,
+    bool isTablet,
+  ) {
+    return Center(
+      child: Container(
+        width: isMobile ? double.infinity : 600,
+        margin: EdgeInsets.all(isMobile ? 16 : 24),
+        padding: EdgeInsets.all(isMobile ? 20 : 32),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.7), // 半透明の黒背景
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Colors.amber.shade300,
+            width: 2,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              size: 64,
+              color: Colors.amber.shade300,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              '入口までしか入れない',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '深層ダンジョンは瘴気で地形も因果も揺らいでいる。\n人間は奥まで耐えられない。',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: Colors.grey.shade300,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '使役獣に契約を交わして代理遠征させますか？',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.amber.shade200,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CustomButton(
+                  text: '戻る',
+                  onPressed: () => context.pop(),
+                  variant: ButtonVariant.secondary,
+                ),
+                const SizedBox(width: 16),
+                CustomButton(
+                  text: '契約を交わす',
+                  onPressed: () => _startExploration(context, ref),
+                  variant: ButtonVariant.primary,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

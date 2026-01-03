@@ -140,6 +140,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
     return Scaffold(
       appBar: const CustomAppBar(
         title: '相談所',
+        fallbackRoute: '/consultation-office',
       ),
       body: _showRecommended
           ? _buildRecommendedTab(state, theme)
@@ -428,10 +429,17 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   Widget _buildSearchTab(AppState state, ThemeData theme, [bool showRecommendedButton = false]) {
     // すべてのモンスターを取得（mock_dataから）
     // 自キャラクターといいね済みのキャラクターを除外
+    // 自キャラクターの性別と異なる性別のモンスターのみを表示
     final allMonsters = mockMonsters.where((monster) {
       // 自キャラクターを除外
       if (state.playerCharacter != null && monster.id == state.playerCharacter!.id) {
         return false;
+      }
+      // 自キャラクターの性別と異なる性別のモンスターのみを表示
+      if (state.playerCharacter != null) {
+        if (monster.gender == state.playerCharacter!.gender) {
+          return false;
+        }
       }
       // いいね済みのキャラクターを除外
       if (state.collaborations.any((c) => c.partnerId == monster.id)) {

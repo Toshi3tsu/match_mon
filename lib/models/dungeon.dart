@@ -1,5 +1,103 @@
 // 深層ダンジョン探索のデータモデル
 
+// 目標到達層
+enum TargetFloor {
+  middle, // 中層
+  deep, // 深層
+  deepest, // 最深部
+}
+
+// 危険許容度
+enum RiskTolerance {
+  aggressive, // 積極的
+  standard, // 標準
+  cautious, // 慎重
+}
+
+// 優先目的
+enum PriorityObjective {
+  wedge, // 楔の確保
+  resource, // 資源回収
+  lineageMaterial, // 系譜素材の獲得
+}
+
+// 契約設定（探索前の指示）
+class ContractSettings {
+  final TargetFloor targetFloor;
+  final RiskTolerance riskTolerance;
+  final PriorityObjective priorityObjective;
+
+  ContractSettings({
+    required this.targetFloor,
+    required this.riskTolerance,
+    required this.priorityObjective,
+  });
+
+  ContractSettings copyWith({
+    TargetFloor? targetFloor,
+    RiskTolerance? riskTolerance,
+    PriorityObjective? priorityObjective,
+  }) {
+    return ContractSettings(
+      targetFloor: targetFloor ?? this.targetFloor,
+      riskTolerance: riskTolerance ?? this.riskTolerance,
+      priorityObjective: priorityObjective ?? this.priorityObjective,
+    );
+  }
+}
+
+// 戦闘履歴エントリ
+class CombatHistoryEntry {
+  final DateTime timestamp;
+  final String nodeId;
+  final String nodeName;
+  final bool victory;
+  final int damageTaken;
+  final Map<String, int> rewards;
+  final String? bossName;
+  final String description; // 戦闘の詳細説明
+
+  CombatHistoryEntry({
+    required this.timestamp,
+    required this.nodeId,
+    required this.nodeName,
+    required this.victory,
+    required this.damageTaken,
+    required this.rewards,
+    this.bossName,
+    required this.description,
+  });
+}
+
+// 探索履歴（全体的な記録）
+class ExplorationHistory {
+  final List<CombatHistoryEntry> combatEntries;
+  final List<String> eventEntries; // イベントの記録
+  final int currentFloor; // 現在の階層
+  final int wedgesSecured; // 確保した楔の数
+
+  ExplorationHistory({
+    required this.combatEntries,
+    required this.eventEntries,
+    required this.currentFloor,
+    required this.wedgesSecured,
+  });
+
+  ExplorationHistory copyWith({
+    List<CombatHistoryEntry>? combatEntries,
+    List<String>? eventEntries,
+    int? currentFloor,
+    int? wedgesSecured,
+  }) {
+    return ExplorationHistory(
+      combatEntries: combatEntries ?? this.combatEntries,
+      eventEntries: eventEntries ?? this.eventEntries,
+      currentFloor: currentFloor ?? this.currentFloor,
+      wedgesSecured: wedgesSecured ?? this.wedgesSecured,
+    );
+  }
+}
+
 enum NodeType {
   combat, // 戦闘ノード
   event, // イベントノード
@@ -277,6 +375,8 @@ class DungeonExplorationState {
   final ExplorationHUD hud; // HUD情報
   final bool isInRoom; // 部屋に入っているか
   final String? currentRoomNodeId; // 現在の部屋のノードID
+  final ContractSettings? contractSettings; // 契約設定（探索前の指示）
+  final ExplorationHistory history; // 探索履歴（戦闘履歴など）
 
   DungeonExplorationState({
     this.currentNodeId,
@@ -285,6 +385,8 @@ class DungeonExplorationState {
     required this.hud,
     this.isInRoom = false,
     this.currentRoomNodeId,
+    this.contractSettings,
+    required this.history,
   });
 
   DungeonExplorationState copyWith({
@@ -294,6 +396,8 @@ class DungeonExplorationState {
     ExplorationHUD? hud,
     bool? isInRoom,
     String? currentRoomNodeId,
+    ContractSettings? contractSettings,
+    ExplorationHistory? history,
   }) {
     return DungeonExplorationState(
       currentNodeId: currentNodeId ?? this.currentNodeId,
@@ -302,6 +406,8 @@ class DungeonExplorationState {
       hud: hud ?? this.hud,
       isInRoom: isInRoom ?? this.isInRoom,
       currentRoomNodeId: currentRoomNodeId ?? this.currentRoomNodeId,
+      contractSettings: contractSettings ?? this.contractSettings,
+      history: history ?? this.history,
     );
   }
 

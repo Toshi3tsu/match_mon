@@ -25,6 +25,7 @@ class MatchesScreen extends ConsumerWidget {
       return Scaffold(
         appBar: const CustomAppBar(
           title: 'マッチング一覧',
+          fallbackRoute: '/consultation-office',
         ),
         body: Center(
           child: Column(
@@ -49,10 +50,11 @@ class MatchesScreen extends ConsumerWidget {
       );
     }
 
-    return Scaffold(
-      appBar: const CustomAppBar(
-        title: 'マッチング一覧',
-      ),
+      return Scaffold(
+        appBar: const CustomAppBar(
+          title: 'マッチング一覧',
+          fallbackRoute: '/consultation-office',
+        ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final screenWidth = constraints.maxWidth;

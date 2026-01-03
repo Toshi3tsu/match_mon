@@ -222,6 +222,13 @@ class DungeonService {
       hud: hud,
       isInRoom: false,
       currentRoomNodeId: null,
+      contractSettings: null, // 契約設定は探索開始前に設定
+      history: ExplorationHistory(
+        combatEntries: [],
+        eventEntries: [],
+        currentFloor: 0,
+        wedgesSecured: 0,
+      ),
     );
   }
   

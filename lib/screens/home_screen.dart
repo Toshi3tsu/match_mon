@@ -311,11 +311,29 @@ class HomeScreen extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          "${monster.species} / ${monster.rank}",
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: Colors.white.withOpacity(0.9),
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              "${monster.species} / ${monster.rank}",
+                              style: theme.textTheme.bodyLarge?.copyWith(
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // 性別アイコン
+                            Icon(
+                              monster.gender == 'female' ? Icons.female : Icons.male,
+                              size: 16,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              monster.gender == 'female' ? 'メス' : 'オス',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.white.withOpacity(0.9),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -356,42 +374,122 @@ class HomeScreen extends ConsumerWidget {
     // 装備補正後のパラメータを取得
     final adjustedParams = monster.getAdjustedParameters();
     
-    if (adjustedParams.isEmpty) {
-      return Text(
-        'パラメータ未設定',
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: Colors.white.withOpacity(0.8),
-        ),
-      );
-    }
-
-    // 主要パラメータを表示（最大4つ）
-    final displayParams = adjustedParams.entries.take(4).toList();
-    
-    return Wrap(
-      spacing: 12,
-      runSpacing: 8,
-      children: displayParams.map((entry) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 性別と寿命の情報
+        Row(
           children: [
-            Text(
-              entry.key,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white.withOpacity(0.8),
-              ),
+            Icon(
+              monster.gender == 'female' ? Icons.female : Icons.male,
+              size: 14,
+              color: Colors.white.withOpacity(0.9),
             ),
             const SizedBox(width: 4),
             Text(
-              '${entry.value}',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+              monster.gender == 'female' ? 'メス' : 'オス',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white.withOpacity(0.9),
               ),
             ),
+            const SizedBox(width: 12),
+            Icon(
+              Icons.timer_outlined,
+              size: 14,
+              color: Colors.white.withOpacity(0.9),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '${monster.age}ターン目 / 残り${monster.remainingLifespan}ターン',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white.withOpacity(0.9),
+              ),
+            ),
+            if (monster.isBreedable) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '交配可能',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
           ],
-        );
-      }).toList(),
+        ),
+        if (adjustedParams.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          // 主要パラメータを表示（最大4つ、優先順位付き）
+          Builder(
+            builder: (context) {
+              // パラメータの優先順位を定義（7パラメータ構成）
+              final priorityOrder = ['攻撃力', '魔力', '防御力', '敏捷性', '精神力', 'インテリジェンス', '魅力'];
+              
+              // 優先順位に従ってソートし、存在するパラメータを取得
+              final sortedParams = <MapEntry<String, int>>[];
+              
+              // 優先順位の高い順に追加
+              for (final key in priorityOrder) {
+                if (adjustedParams.containsKey(key)) {
+                  sortedParams.add(MapEntry(key, adjustedParams[key]!));
+                }
+              }
+              
+              // 優先順位にないパラメータも追加
+              for (final entry in adjustedParams.entries) {
+                if (!priorityOrder.contains(entry.key) && !sortedParams.any((e) => e.key == entry.key)) {
+                  sortedParams.add(entry);
+                }
+              }
+              
+              // 最大4つまで表示
+              final displayParams = sortedParams.take(4).toList();
+              
+              return Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                children: displayParams.map((entry) {
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        entry.key,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withOpacity(0.8),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${entry.value}',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ] else ...[
+          const SizedBox(height: 8),
+          Text(
+            'パラメータ未設定',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white.withOpacity(0.8),
+            ),
+          ),
+        ],
+      ],
     );
   }
 

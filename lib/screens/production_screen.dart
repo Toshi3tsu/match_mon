@@ -77,6 +77,7 @@ class _ProductionScreenState extends ConsumerState<ProductionScreen> {
         Scaffold(
           appBar: const CustomAppBar(
             title: '交配プランナー',
+            fallbackRoute: '/consultation-office',
           ),
           body: LayoutBuilder(
             builder: (context, constraints) {
